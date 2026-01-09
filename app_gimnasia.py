@@ -309,9 +309,7 @@ def mostrar_dashboard():
             d = c1.text_input("DNI")
             n = c2.text_input("Nombre")
             r = c3.selectbox("Rol", ["Gimnasta", "Entrenador"])
-            if "Rol" : "Gimnasta"
-            p = st.selectbox("2. Nivel", ["Desarrollo (Nivel 3-5)", "Opcional/Elite (Nivel 6-10)"])
-                else st.text_input("Password")
+            p = st.text_input("Password")
             if st.form_submit_button("Agregar"):
                 new = pd.DataFrame([{"DNI":d, "Nombre":n, "Rol":r, "Nivel_o_Pass":p, "Activo":"SI"}])
                 if actualizar_usuarios_db(pd.concat([df_users, new], ignore_index=True)):
@@ -362,6 +360,7 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
 
 
 
