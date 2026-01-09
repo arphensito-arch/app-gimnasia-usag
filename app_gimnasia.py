@@ -69,7 +69,7 @@ def inicializar_plan_default():
                     data_base.append({
                         "Fase": f, "Nivel": n, "Dia": d,
                         "Foco": "Foco del día (Editar)",
-                        "Calentamiento": "Trote 5min\nMovilidad\nPostura",
+                        "Calentamiento": "Trote, galope, saltos tijera y movilidad articular completa.\n1 min Parada de manos (Pared), 1 min Hollow, 1 min Arch.\nEstiramiento dinámico de muñecas y tobillos (CRUCIAL para prevenir lesiones en fase de volumen).",
                         "Fisico": "Ejercicio 1\nEjercicio 2\nEjercicio 3",
                         "Tecnico": "Drill 1\nDrill 2\nRutinas"
                     })
@@ -285,4 +285,5 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
 
