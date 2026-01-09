@@ -7,6 +7,8 @@ import time
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Gestión EMGA", page_icon="🤸‍♀️", layout="wide")
 
+# --- CONEXIÓN ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- 1. GESTIÓN DE LA BASE DE DATOS (LECTURA/ESCRITURA) ---
 
@@ -358,6 +360,7 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
 
 
 
