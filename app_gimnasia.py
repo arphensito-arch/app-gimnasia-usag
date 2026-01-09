@@ -5,264 +5,283 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Sistema USAG - Gestión", page_icon="🤸‍♀️", layout="wide")
+st.set_page_config(page_title="Sistema USAG - Gestión Total", page_icon="🤸‍♀️", layout="wide")
 
 # --- CONEXIÓN ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- FUNCIONES DE BASE DE DATOS ---
+# --- 1. GESTIÓN DE LA BASE DE DATOS (LECTURA/ESCRITURA) ---
 
 def cargar_historial():
-    try:
-        return conn.read(worksheet="Historial", ttl=0)
-    except:
-        return pd.DataFrame()
+    try: return conn.read(worksheet="Historial", ttl=0)
+    except: return pd.DataFrame()
 
 def cargar_usuarios_db():
     try:
         df = conn.read(worksheet="Usuarios", ttl=0)
         df['DNI'] = df['DNI'].astype(str)
-        # Filtramos solo los que dicen "SI" en la columna Activo (opcional, pero recomendado)
         return df
-    except Exception as e:
-        st.error(f"Error leyendo usuarios. Revisa los encabezados en Google Sheets: {e}")
-        return pd.DataFrame(columns=["DNI", "Nombre", "Rol", "Nivel_o_Pass", "Activo"])
+    except: return pd.DataFrame(columns=["DNI", "Nombre", "Rol", "Nivel_o_Pass", "Activo"])
+
+def cargar_planificacion_db():
+    try:
+        return conn.read(worksheet="Planificacion", ttl=0)
+    except: return pd.DataFrame()
 
 def guardar_entrenamiento(datos):
     try:
-        df_existente = cargar_historial()
-        df_nuevo = pd.DataFrame([datos])
-        df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
+        df_ex = cargar_historial()
+        df_new = pd.DataFrame([datos])
+        df_final = pd.concat([df_ex, df_new], ignore_index=True)
         conn.update(worksheet="Historial", data=df_final)
         return True
     except Exception as e:
-        st.error(f"Error al guardar: {e}")
-        return False
+        st.error(f"Error al guardar: {e}"); return False
 
 def actualizar_usuarios_db(df_nuevo):
     try:
         conn.update(worksheet="Usuarios", data=df_nuevo)
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        st.error(f"Error actualizando usuarios: {e}")
-        return False
+        st.cache_data.clear(); return True
+    except: return False
 
-# --- LÓGICA DEL PLAN DE ENTRENAMIENTO ---
-def obtener_plan(fase, nivel, dia_semana):
-    fisico, tecnico, calentamiento = [], [], []
-    
-    # Lógica base (Resumida para el ejemplo)
-    if fase == "Fase Competitiva":
-        calentamiento = ["Cardio Suave (10')", "Flexibilidad (10')", "Básicos (10')"]
-    else:
-        calentamiento = ["Cardio (5')", "Movilidad (5')", "Postura (5')"]
+def actualizar_planificacion_db(df_nuevo):
+    try:
+        conn.update(worksheet="Planificacion", data=df_nuevo)
+        st.cache_data.clear(); return True
+    except: return False
 
-    if dia_semana == "Monday":
-        foco = "Salto y Piernas"
-        fisico = ["Sentadillas", "Saltos Cajón"]
-        tecnico = ["Carrera", "Entrada Flatback"]
-    elif dia_semana == "Tuesday":
-        foco = "Barras y Tracción"
-        fisico = ["Dominadas", "Leg Lifts"]
-        tecnico = ["Kips", "Cast a Vertical"]
-    elif dia_semana == "Wednesday":
-        foco = "Viga y Core"
-        fisico = ["Hollow Rocks", "Planchas"]
-        tecnico = ["Acrobacia Viga", "Danza"]
-    elif dia_semana == "Thursday":
-        foco = "Suelo y Empuje"
-        fisico = ["Flexiones", "V-ups"]
-        tecnico = ["Tumbling", "Rutinas Suelo"]
-    elif dia_semana == "Friday":
-        foco = "Control / Modelaje"
-        fisico = ["Circuito Metabólico"]
-        tecnico = ["Simulacro Competencia"]
-    else:
-        foco = "Descanso"
+# --- 2. LÓGICA DE PLANIFICACIÓN INTELIGENTE ---
+
+# Esta función verifica si la hoja está vacía. Si lo está, carga el plan base automáticamente.
+def inicializar_plan_default():
+    df = cargar_planificacion_db()
+    if df.empty or len(df) < 5:
+        # Generamos una estructura base para evitar errores
+        data_base = []
+        fases = ["Fase Base (Feb/Ago)", "Fase Carga (Mar-Abr / Sep-Oct)", "Fase Competitiva (May-Jun / Nov)"]
+        niveles = ["Desarrollo (Nivel 3-5)", "Opcional/Elite (Nivel 6-10)"]
+        dias = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         
-    return {"calentamiento": calentamiento, "fisico": fisico, "tecnico": tecnico, "foco": foco}
+        for f in fases:
+            for n in niveles:
+                for d in dias:
+                    # Rellenamos con texto genérico para editar luego
+                    data_base.append({
+                        "Fase": f, "Nivel": n, "Dia": d,
+                        "Foco": "Foco del día (Editar)",
+                        "Calentamiento": "Trote 5min\nMovilidad\nPostura",
+                        "Fisico": "Ejercicio 1\nEjercicio 2\nEjercicio 3",
+                        "Tecnico": "Drill 1\nDrill 2\nRutinas"
+                    })
+        df_base = pd.DataFrame(data_base)
+        actualizar_planificacion_db(df_base)
+        return df_base
+    return df
 
-# --- GESTIÓN DE SESIÓN ---
+def obtener_plan_dinamico(fase, nivel, dia_ingles):
+    df_plan = cargar_planificacion_db()
+    
+    # Si falla la carga, intentamos inicializar
+    if df_plan.empty: 
+        df_plan = inicializar_plan_default()
+
+    # Filtramos la fila exacta
+    filtro = df_plan[
+        (df_plan['Fase'] == fase) & 
+        (df_plan['Nivel'] == nivel) & 
+        (df_plan['Dia'] == dia_ingles)
+    ]
+
+    if not filtro.empty:
+        fila = filtro.iloc[0]
+        # Convertimos los textos con "Enter" en listas para los checkboxes
+        return {
+            "foco": fila['Foco'],
+            "calentamiento": str(fila['Calentamiento']).split('\n'),
+            "fisico": str(fila['Fisico']).split('\n'),
+            "tecnico": str(fila['Tecnico']).split('\n')
+        }
+    else:
+        # Retorno por defecto si es sábado/domingo o no hay datos
+        return {"foco": "Descanso", "calentamiento": [], "fisico": [], "tecnico": []}
+
+# --- 3. GESTIÓN DE SESIÓN ---
 if 'logueado' not in st.session_state: st.session_state['logueado'] = False
 if 'rol_actual' not in st.session_state: st.session_state['rol_actual'] = ""
 if 'usuario_actual' not in st.session_state: st.session_state['usuario_actual'] = {}
 
 def login():
     st.markdown("<h1 style='text-align: center;'>🔐 Acceso USAG</h1>", unsafe_allow_html=True)
-    
-    # Cargamos la base de datos completa
     df_usuarios = cargar_usuarios_db()
     
-    # Separamos en dos grupos
     gimnastas = df_usuarios[df_usuarios['Rol'] == 'Gimnasta']
     entrenadores = df_usuarios[df_usuarios['Rol'] == 'Entrenador']
     
     tab_alum, tab_prof = st.tabs(["Soy Gimnasta 🤸‍♀️", "Soy Entrenador/a 📋"])
     
-    # --- LOGIN GIMNASTAS ---
     with tab_alum:
         with st.form("login_gimnasta"):
-            st.write("Ingresa tu documento:")
-            dni = st.text_input("DNI")
-            if st.form_submit_button("Entrar", use_container_width=True):
+            dni = st.text_input("Ingresa tu DNI")
+            if st.form_submit_button("Entrar"):
                 user = gimnastas[gimnastas['DNI'] == dni]
-                if not user.empty:
+                if not user.empty and user.iloc[0]['Activo'] == 'SI':
                     datos = user.iloc[0]
-                    if datos['Activo'] == 'SI':
-                        st.session_state['logueado'] = True
-                        st.session_state['rol_actual'] = "Gimnasta"
-                        st.session_state['usuario_actual'] = {
-                            "dni": datos['DNI'], "nombre": datos['Nombre'], "nivel": datos['Nivel_o_Pass']
-                        }
-                        st.rerun()
-                    else:
-                        st.error("Usuario inactivo.")
-                else:
-                    st.error("DNI no encontrado.")
-
-    # --- LOGIN ENTRENADORES (LISTA DESPLEGABLE) ---
-    with tab_prof:
-        # Creamos una lista de nombres para el SelectBox
-        lista_nombres_profes = entrenadores['Nombre'].unique().tolist()
-        
-        if not lista_nombres_profes:
-            st.warning("No hay entrenadores registrados en la base de datos.")
-        else:
-            seleccion_profe = st.selectbox("Selecciona tu nombre:", lista_nombres_profes)
-            password_input = st.text_input("Contraseña:", type="password")
-            
-            if st.button("Ingresar como Entrenador", use_container_width=True):
-                # Buscamos al profe seleccionado
-                profe_data = entrenadores[entrenadores['Nombre'] == seleccion_profe].iloc[0]
-                
-                # Validamos contraseña (Columna Nivel_o_Pass)
-                # Convertimos a string por si es número en excel
-                pass_real = str(profe_data['Nivel_o_Pass']) 
-                
-                if password_input == pass_real:
-                    st.session_state['logueado'] = True
-                    st.session_state['rol_actual'] = "Entrenador"
-                    st.session_state['usuario_actual'] = {
-                        "dni": profe_data['DNI'], "nombre": profe_data['Nombre'], "nivel": "Coach"
-                    }
-                    st.success(f"Hola {profe_data['Nombre']}")
-                    time.sleep(1)
+                    st.session_state.update({'logueado': True, 'rol_actual': 'Gimnasta', 'usuario_actual': datos.to_dict()})
                     st.rerun()
-                else:
-                    st.error("Contraseña incorrecta.")
+                else: st.error("Acceso denegado.")
+
+    with tab_prof:
+        lista_profes = entrenadores['Nombre'].unique().tolist()
+        if lista_profes:
+            seleccion = st.selectbox("Nombre:", lista_profes)
+            pwd = st.text_input("Contraseña:", type="password")
+            if st.button("Ingresar Admin"):
+                profe = entrenadores[entrenadores['Nombre'] == seleccion].iloc[0]
+                if pwd == str(profe['Nivel_o_Pass']):
+                    st.session_state.update({'logueado': True, 'rol_actual': 'Entrenador', 'usuario_actual': profe.to_dict()})
+                    st.rerun()
+                else: st.error("Incorrecto.")
 
 def logout():
-    st.session_state['logueado'] = False
-    st.session_state['rol_actual'] = ""
+    st.session_state.clear()
     st.rerun()
 
-# --- VISTA: PANEL DE GESTIÓN (SOLO ENTRENADORES) ---
+# --- 4. PANEL DE ENTRENADOR (ADMIN) ---
 def mostrar_dashboard():
-    st.title(f"📋 Panel de Gestión - {st.session_state['usuario_actual']['nombre']}")
+    st.title(f"📋 Panel de Gestión - {st.session_state['usuario_actual']['Nombre']}")
     
-    tab_stats, tab_users = st.tabs(["📊 Estadísticas", "👥 Gestión de Usuarios"])
+    # TRES PESTAÑAS AHORA
+    tab_stats, tab_edit_plan, tab_users = st.tabs(["📊 Historial", "✏️ Editar Entrenamientos", "👥 Usuarios"])
     
+    # --- PESTAÑA 1: ESTADÍSTICAS ---
     with tab_stats:
         df = cargar_historial()
-        if df.empty:
-            st.info("Sin registros aún.")
-        else:
-            col1, col2 = st.columns(2)
-            col1.metric("Entrenamientos Totales", len(df))
-            col2.metric("Último", df.iloc[-1]['Fecha'] if not df.empty else "-")
+        if not df.empty:
             st.dataframe(df.sort_values(by="Fecha", ascending=False), use_container_width=True)
+            st.markdown(f"[Ver en Google Sheets]({st.secrets['connections']['gsheets']['spreadsheet']})")
+        else: st.info("Sin registros.")
 
-    with tab_users:
-        st.info("Aquí puedes crear GIMNASTAS o nuevos ENTRENADORES.")
+    # --- PESTAÑA 2: EDITOR DE PLANIFICACIÓN (NUEVO) ---
+    with tab_edit_plan:
+        st.info("💡 Selecciona Fase, Nivel y Día para cargar el plan y modificarlo.")
         
-        df_usuarios = cargar_usuarios_db()
-        st.dataframe(df_usuarios, use_container_width=True)
-        
-        st.markdown("### ➕ Agregar Nuevo Usuario")
-        
-        with st.form("nuevo_usuario"):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                new_dni = st.text_input("DNI (Usuario único)")
-                new_nombre = st.text_input("Nombre Completo")
-                new_rol = st.selectbox("Rol", ["Gimnasta", "Entrenador"])
-            
-            with col_b:
-                st.write("Dependiendo del Rol:")
-                # Usamos un text_input genérico, la etiqueta cambia visualmente
-                new_dato = st.text_input("Nivel (si es Gimnasta) o Contraseña (si es Profe)")
+        col_sel1, col_sel2, col_sel3 = st.columns(3)
+        with col_sel1:
+            fase_edit = st.selectbox("1. Fase", ["Fase Base (Feb/Ago)", "Fase Carga (Mar-Abr / Sep-Oct)", "Fase Competitiva (May-Jun / Nov)"])
+        with col_sel2:
+            nivel_edit = st.selectbox("2. Nivel", ["Desarrollo (Nivel 3-5)", "Opcional/Elite (Nivel 6-10)"])
+        with col_sel3:
+            dia_traduccion = {"Lunes": "Monday", "Martes": "Tuesday", "Miércoles": "Wednesday", "Jueves": "Thursday", "Viernes": "Friday"}
+            dia_espanol = st.selectbox("3. Día", list(dia_traduccion.keys()))
+            dia_edit = dia_traduccion[dia_espanol]
+
+        # Cargar datos actuales
+        df_plan = cargar_planificacion_db()
+        if df_plan.empty: df_plan = inicializar_plan_default()
+
+        # Filtrar fila actual
+        filtro_idx = df_plan[
+            (df_plan['Fase'] == fase_edit) & 
+            (df_plan['Nivel'] == nivel_edit) & 
+            (df_plan['Dia'] == dia_edit)
+        ].index
+
+        if not filtro_idx.empty:
+            idx = filtro_idx[0]
+            datos_actuales = df_plan.loc[idx]
+
+            st.markdown("---")
+            with st.form("editor_plan"):
+                st.subheader(f"Editando: {dia_espanol} - {nivel_edit}")
                 
-            if st.form_submit_button("Guardar Usuario"):
-                if new_dni and new_nombre and new_dato:
-                    if new_dni in df_usuarios['DNI'].values:
-                        st.error("¡El DNI ya existe!")
-                    else:
-                        nuevo = pd.DataFrame([{
-                            "DNI": new_dni,
-                            "Nombre": new_nombre,
-                            "Rol": new_rol,
-                            "Nivel_o_Pass": new_dato,
-                            "Activo": "SI"
-                        }])
-                        df_updated = pd.concat([df_usuarios, nuevo], ignore_index=True)
-                        if actualizar_usuarios_db(df_updated):
-                            st.success(f"{new_rol} agregado correctamente.")
+                # Campos de edición
+                new_foco = st.text_input("Objetivo / Foco del Día", value=datos_actuales['Foco'])
+                
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.markdown("**🔥 Calentamiento** (1 por línea)")
+                    new_cal = st.text_area("Lista", value=datos_actuales['Calentamiento'], height=200)
+                with c2:
+                    st.markdown("**💪 Físico** (1 por línea)")
+                    new_fis = st.text_area("Lista", value=datos_actuales['Fisico'], height=200)
+                with c3:
+                    st.markdown("**🤸‍♀️ Técnico** (1 por línea)")
+                    new_tec = st.text_area("Lista", value=datos_actuales['Tecnico'], height=200)
+                
+                if st.form_submit_button("💾 Guardar Cambios"):
+                    # Actualizar DataFrame localmente
+                    df_plan.at[idx, 'Foco'] = new_foco
+                    df_plan.at[idx, 'Calentamiento'] = new_cal
+                    df_plan.at[idx, 'Fisico'] = new_fis
+                    df_plan.at[idx, 'Tecnico'] = new_tec
+                    
+                    # Subir a Google Sheets
+                    with st.spinner("Actualizando base de datos..."):
+                        if actualizar_planificacion_db(df_plan):
+                            st.success("¡Plan actualizado correctamente!")
                             time.sleep(1)
                             st.rerun()
-                else:
-                    st.warning("Completa todos los campos.")
+        else:
+            st.warning("No se encontró una fila para esta configuración. (Ejecuta la app una vez para crear la base).")
 
-# --- VISTA: APP GIMNASTA (IGUAL QUE ANTES) ---
+    # --- PESTAÑA 3: USUARIOS ---
+    with tab_users:
+        # (Código de usuarios resumido, igual que antes)
+        df_users = cargar_usuarios_db()
+        st.dataframe(df_users, use_container_width=True)
+        with st.form("add_user"):
+            c1, c2, c3 = st.columns(3)
+            d = c1.text_input("DNI")
+            n = c2.text_input("Nombre")
+            r = c3.selectbox("Rol", ["Gimnasta", "Entrenador"])
+            p = st.text_input("Nivel / Password")
+            if st.form_submit_button("Agregar"):
+                new = pd.DataFrame([{"DNI":d, "Nombre":n, "Rol":r, "Nivel_o_Pass":p, "Activo":"SI"}])
+                if actualizar_usuarios_db(pd.concat([df_users, new], ignore_index=True)):
+                    st.rerun()
+
+# --- 5. VISTA GIMNASTA ---
 def mostrar_app_gimnasta():
     user = st.session_state['usuario_actual']
     with st.sidebar:
-        st.write(f"Hola, **{user['nombre']}**")
-        st.caption(f"Nivel: {user['nivel']}")
+        st.write(f"Hola, **{user['Nombre']}**"); st.caption(user['Nivel_o_Pass'])
         if st.button("Salir"): logout()
         fecha = st.date_input("Fecha", datetime.now())
-        fase = st.selectbox("Fase", ["Fase Base", "Fase Carga", "Fase Competitiva"])
+        fase = st.selectbox("Fase", ["Fase Base (Feb/Ago)", "Fase Carga (Mar-Abr / Sep-Oct)", "Fase Competitiva (May-Jun / Nov)"])
 
     dia_ing = fecha.strftime("%A")
-    plan = obtener_plan(fase, user['nivel'], dia_ing)
-    
+    # AQUI LLAMAMOS AL PLAN DINÁMICO
+    plan = obtener_plan_dinamico(fase, user['Nivel_o_Pass'], dia_ing)
+
     if plan['foco'] == "Descanso":
         st.info("Día de descanso.")
     else:
-        st.header(f"Plan: {plan['foco']}")
+        st.title(f"Plan: {plan['foco']}")
         completados = 0
-        total = len(plan['calentamiento'] + plan['fisico'] + plan['tecnico'])
+        lista_total = plan['calentamiento'] + plan['fisico'] + plan['tecnico']
+        total = len([x for x in lista_total if x.strip() != ""]) # Contar solo items no vacíos
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Físico")
-            for i in plan['calentamiento'] + plan['fisico']:
-                if st.checkbox(i, key=i): completados += 1
-        with col2:
-            st.subheader("Técnico")
-            for i in plan['tecnico']:
-                if st.checkbox(i, key=i): completados += 1
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Físico"); 
+            for i in plan['calentamiento'] + plan['fisico']: 
+                if i.strip(): 
+                    if st.checkbox(i, key=i): completados+=1
+        with c2:
+            st.subheader("Técnico"); 
+            for i in plan['tecnico']: 
+                if i.strip():
+                    if st.checkbox(i, key=i): completados+=1
         
-        notas = st.text_area("Notas:")
-        progreso = completados / total if total > 0 else 0
+        progreso = completados/total if total>0 else 0
         st.progress(progreso)
         
-        if st.button("Guardar Entrenamiento", type="primary"):
-            datos = {
-                "Fecha": str(fecha), "Hora": datetime.now().strftime("%H:%M"),
-                "DNI": user['dni'], "Atleta": user['nombre'],
-                "Nivel": user['nivel'], "Fase": fase, "Foco": plan['foco'],
-                "Cumplimiento": f"{int(progreso * 100)}%", "Notas": notas
-            }
-            if guardar_entrenamiento(datos):
-                st.success("Guardado!")
-                time.sleep(2)
+        if st.button("Guardar"):
+            datos = {"Fecha":str(fecha), "Atleta":user['Nombre'], "Foco":plan['foco'], "Cumplimiento":f"{int(progreso*100)}%"}
+            if guardar_entrenamiento(datos): st.success("Guardado!"); time.sleep(1)
 
 # --- MAIN ---
-if not st.session_state['logueado']:
-    login()
+if not st.session_state['logueado']: login()
 else:
-    if st.session_state['rol_actual'] == "Entrenador":
-        mostrar_dashboard()
-    else:
-        mostrar_app_gimnasta()
+    if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
+    else: mostrar_app_gimnasta()
