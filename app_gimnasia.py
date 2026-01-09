@@ -224,9 +224,7 @@ def logout():
 # --- 4. PANEL DE ENTRENADOR (ADMIN) ---
 def mostrar_dashboard():
     st.title(f"📋 Panel de Gestión - {st.session_state['usuario_actual']['Nombre']}")
-    with st.bottombar:
-        if st.button("Salir"): logout()
-            
+                
     # TRES PESTAÑAS AHORA
     tab_stats, tab_edit_plan, tab_users = st.tabs(["📊 Historial", "✏️ Editar Entrenamientos", "👥 Usuarios"])
     
@@ -362,4 +360,5 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
 
