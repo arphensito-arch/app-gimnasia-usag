@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Sistema USAG - Gestión Total", page_icon="🤸‍♀️", layout="wide")
+st.set_page_config(page_title="Sistema EMGA - Gestión Total", page_icon="🤸‍♀️", layout="wide")
 
 # --- CONEXIÓN ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -111,7 +111,7 @@ if 'rol_actual' not in st.session_state: st.session_state['rol_actual'] = ""
 if 'usuario_actual' not in st.session_state: st.session_state['usuario_actual'] = {}
 
 def login():
-    st.markdown("<h1 style='text-align: center;'>🔐 Acceso USAG</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🔐 Acceso Equipo</h1>", unsafe_allow_html=True)
     df_usuarios = cargar_usuarios_db()
     
     gimnastas = df_usuarios[df_usuarios['Rol'] == 'Gimnasta']
@@ -285,3 +285,4 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
