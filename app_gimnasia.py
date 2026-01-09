@@ -143,19 +143,44 @@ def vista_admin():
         st.dataframe(df_h, use_container_width=True)
 
     with t3:
-        st.write("Gestión de Usuarios")
-            df_users = cargar_usuarios_db()
-            st.dataframe(df_users, use_container_width=True)
-            with st.form("add_user"):
-                c1, c2, c3 = st.columns(3)
-                d = c1.text_input("DNI")
-                n = c2.text_input("Nombre")
-                r = c3.selectbox("Rol", ["Gimnasta", "Entrenador"])
-                p = st.text_input("Nivel / Password")
-                if st.form_submit_button("Agregar"):
-                    new = pd.DataFrame([{"DNI":d, "Nombre":n, "Rol":r, "Nivel_o_Pass":p, "Activo":"SI"}])
-                    if actualizar_usuarios_db(pd.concat([df_users, new], ignore_index=True)):
-                        st.rerun()
+        st.info("Aquí puedes crear GIMNASTAS o nuevos ENTRENADORES.")
+        
+        df_usuarios = cargar_usuarios_db()
+        st.dataframe(df_usuarios, use_container_width=True)
+        
+        st.markdown("### ➕ Agregar Nuevo Usuario")
+        
+        with st.form("nuevo_usuario"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                new_dni = st.text_input("DNI (Usuario único)")
+                new_nombre = st.text_input("Nombre Completo")
+                new_rol = st.selectbox("Rol", ["Gimnasta", "Entrenador"])
+            
+            with col_b:
+                st.write("Dependiendo del Rol:")
+                # Usamos un text_input genérico, la etiqueta cambia visualmente
+                new_dato = st.text_input("Nivel (si es Gimnasta) o Contraseña (si es Profe)")
+                
+            if st.form_submit_button("Guardar Usuario"):
+                if new_dni and new_nombre and new_dato:
+                    if new_dni in df_usuarios['DNI'].values:
+                        st.error("¡El DNI ya existe!")
+                    else:
+                        nuevo = pd.DataFrame([{
+                            "DNI": new_dni,
+                            "Nombre": new_nombre,
+                            "Rol": new_rol,
+                            "Nivel_o_Pass": new_dato,
+                            "Activo": "SI"
+                        }])
+                        df_updated = pd.concat([df_usuarios, nuevo], ignore_index=True)
+                        if actualizar_usuarios_db(df_updated):
+                            st.success(f"{new_rol} agregado correctamente.")
+                            time.sleep(1)
+                            st.rerun()
+                else:
+                    st.warning("Completa todos los campos.")
 
 # --- 5. VISTA GIMNASTA ---
 def vista_gimnasta():
@@ -208,5 +233,6 @@ def vista_gimnasta():
 if not st.session_state['logueado']: login()
 elif st.session_state['rol'] == 'Entrenador': vista_admin()
 else: vista_gimnasta()
+
 
 
