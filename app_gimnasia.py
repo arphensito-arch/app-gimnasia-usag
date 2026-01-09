@@ -144,10 +144,9 @@ def vista_admin():
 
     with t3:
         st.write("Gestión de Usuarios")
-        with tab_users:
-               df_users = cargar_usuarios_db()
-               st.dataframe(df_users, use_container_width=True)
-               with st.form("add_user"):
+            df_users = cargar_usuarios_db()
+            st.dataframe(df_users, use_container_width=True)
+            with st.form("add_user"):
                 c1, c2, c3 = st.columns(3)
                 d = c1.text_input("DNI")
                 n = c2.text_input("Nombre")
@@ -209,4 +208,5 @@ def vista_gimnasta():
 if not st.session_state['logueado']: login()
 elif st.session_state['rol'] == 'Entrenador': vista_admin()
 else: vista_gimnasta()
+
 
