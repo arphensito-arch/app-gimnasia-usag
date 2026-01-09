@@ -216,6 +216,7 @@ def vista_gimnasta():
 
 # --- MAIN ---
 if not st.session_state['logueado']: login()
-elif st.session_state['rol'] == 'Entrenador': vista_admin()
+elif st.session_state['rol'] == 'Entrenadores': vista_admin()
 else: vista_gimnasta()
+
 
