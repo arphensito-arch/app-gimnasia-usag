@@ -65,89 +65,14 @@ def inicializar_plan_default():
         for f in fases:
             for n in niveles:
                 for d in dias:
-                   # Lógica de alineación según lo desarrollado previamente
-                    foco, cal, fis, tec = "", "", "", ""
-                    
-                    if d == "Monday":
-                        foco = "Salto y Potencia de Piernas"
-                        if "Base" in f:
-                            cal = "Trote 5'\nMovilidad Articular\nHollow/Arch/Handstand"
-                            fis = "Sentadillas Profundas\nZancadas\nSaltos al Cajón\nWall Sit" if not es_avanzado else "Sentadilla con Lastre\nPeso Muerto\nDepth Jumps\nWall Sit con Disco"
-                            tec = "Drills de Carrera\nEntrada Flatback\nSalto a parada de manos" if not es_avanzado else "Sprints con liga\nEntrada Yurchenko\nRechazo en mesa"
-                        elif "Carga" in f:
-                            cal = "Sprints cortos\nSaltos laterales\nActivación Neural"
-                            fis = "Contraste: Sentadilla+Salto\nSaltos de Conejo\nSprints Suicidas"
-                            tec = "Carrera completa con tabla\n20 Saltos de Calidad"
-                        else: # Comp
-                            cal = "Cardio suave 10'\nFlexibilidad dinámica"
-                            fis = "Saltos Reactivos (3x5)\nVisualización"
-                            tec = "Stick Landings (Clavar)\n1 Salto Puntuado"
-
-                    elif d == "Tuesday":
-                        foco = "Barras y Tracción"
-                        if "Base" in f:
-                            cal = "Movilidad Hombros\nMuñecas\nHandstand pared"
-                            fis = "Dominadas Asistidas\nLeg Lifts\nTrepa de Soga" if not es_avanzado else "Dominadas Estrictas\nToes-to-Bar\nTrepa en L"
-                            tec = "Balanceos (Swings)\nKip Drills\nCast horizontal" if not es_avanzado else "Gigantes Correa\nCast Vertical\nSueltas en foso"
-                        elif "Carga" in f:
-                            cal = "Sprints\nKicks rápidos"
-                            fis = "Kipping Pullups\nV-ups Rápidos\nAguante 1 mano"
-                            tec = "Conexiones (Kip+Cast)\nMitades de Rutina"
-                        else: # Comp
-                            cal = "Flexibilidad\nBásicos Forma"
-                            fis = "Hollow Body (3x20s)\nDominadas Explosivas"
-                            tec = "Rutinas Completas\nSalidas Clavadas"
-
-                    elif d == "Wednesday":
-                        foco = "Viga y Core/Flex"
-                        if "Base" in f:
-                            cal = "Caminatas Relevé\nSaltos Básicos"
-                            fis = "Hollow Rocks\nPlancha Lateral\nKicks (Patadas)"
-                            tec = "Equilibrios 30s\nVerticales Marcadas"
-                        elif "Carga" in f:
-                            cal = "HIIT 5'\nSalto soga"
-                            fis = "EMOM 40min (Burpees/V-ups)\nPlanchas Bosu"
-                            tec = "Series Acrobáticas x10\nPressure Sets"
-                        else: # Comp
-                            cal = "Danza Viga\nFlexibilidad"
-                            fis = "Ballet Suelo\nVisualización"
-                            tec = "Rutinas SIN CAÍDA\nPresentación"
-
-                    elif d == "Thursday":
-                        foco = "Suelo y Empuje"
-                        if "Base" in f:
-                            cal = "Círculos brazos\nPush-ups técnica"
-                            fis = "Flexiones Codos Pegados\nCaminata Manos\nV-ups"
-                            tec = "Rondada Flic-Flac Drills\nVertical Puente"
-                        elif "Carga" in f:
-                            cal = "Burpees\nSnap downs"
-                            fis = "Flexiones Palmada\nSoga Doble\nBalón Medicinal"
-                            tec = "Resistencia Líneas\nRutinas Tumble Trak"
-                        else: # Comp
-                            cal = "Coreografía\nSaltos Amplitud"
-                            fis = "Escalera Agilidad\nSprints 15m"
-                            tec = "Rutinas Música\nDetalle Puntas"
-
-                    elif d == "Friday":
-                        foco = "Control y Modelaje"
-                        if "Base" in f:
-                            cal = "Movilidad general"
-                            fis = "Circuito Metabólico (4 vueltas)"
-                            tec = "Repaso aparato débil"
-                        elif "Carga" in f:
-                            cal = "Trote rápido"
-                            fis = "Preventivo Tobillos/Hombros"
-                            tec = "Testeo Dificultades\nUnión de Partes"
-                        else: # Comp
-                            cal = "Calentamiento Torneo"
-                            fis = "Descarga/Rodillo"
-                            tec = "SIMULACRO JUZGADO\nRotación Olímpica"
-
+                    # Rellenamos con texto genérico para editar luego
                     data_base.append({
-                        "Fase": f, "Nivel": n, "Dia": d, "Foco": foco,
-                        "Calentamiento": cal, "Fisico": fis, "Tecnico": tec
+                        "Fase": f, "Nivel": n, "Dia": d,
+                        "Foco": "Foco del día (Editar)",
+                        "Calentamiento": "Trote 5min\nMovilidad\nPostura",
+                        "Fisico": "Ejercicio 1\nEjercicio 2\nEjercicio 3",
+                        "Tecnico": "Drill 1\nDrill 2\nRutinas"
                     })
-        
         df_base = pd.DataFrame(data_base)
         actualizar_planificacion_db(df_base)
         return df_base
