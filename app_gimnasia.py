@@ -50,6 +50,17 @@ def actualizar_planificacion_db(df_nuevo):
         st.cache_data.clear(); return True
     except: return False
 
+def guardar_asistencia_lote(lista_asistencia):
+    try:
+        df_ex = conn.read(worksheet="Asistencia_Grupal", ttl=0)
+        df_nueva = pd.DataFrame(lista_asistencia)
+        df_final = pd.concat([df_ex, df_nueva], ignore_index=True)
+        conn.update(worksheet="Asistencia_Grupal", data=df_final)
+        return True
+    except:
+        st.error("Error al conectar con la hoja Asistencia_Grupal. revisa el nombre.")
+        return False
+
 # --- 2. LÓGICA DE PLANIFICACIÓN INTELIGENTE ---
 
 # Esta función verifica si la hoja está vacía. Si lo está, carga el plan base automáticamente.
@@ -226,7 +237,7 @@ def mostrar_dashboard():
     st.title(f"📋 Panel de Gestión - {st.session_state['usuario_actual']['Nombre']}")
                 
     # TRES PESTAÑAS AHORA
-    tab_stats, tab_edit_plan, tab_users = st.tabs(["📊 Historial", "✏️ Editar Entrenamientos", "👥 Usuarios"])
+    tab_stats, tab_edit_plan, tab_users, tab_assistance = st.tabs(["📊 Historial", "✏️ Editar Entrenamientos", "👥 Usuarios", "📝 Tomar Asistencia"])
     
     # --- PESTAÑA 1: ESTADÍSTICAS ---
     with tab_stats:
@@ -315,6 +326,47 @@ def mostrar_dashboard():
                 if actualizar_usuarios_db(pd.concat([df_users, new], ignore_index=True)):
                     st.rerun()
 
+    # --- PESTAÑA 4: ASISTENCIA ---
+
+    with tab_assistance:
+        st.subheader("Pase de Lista por Grupo")
+        df_u = cargar_usuarios_db()
+        gimnastas_totales = df_u[df_u['Rol'] == 'Gimnasta']
+        
+        # 1. Seleccionar Grupo
+        niveles_disponibles = gimnastas_totales['Nivel_o_Pass'].unique().tolist()
+        grupo_sel = st.selectbox("Seleccionar Grupo para tomar lista:", niveles_disponibles)
+        
+        # 2. Filtrar niñas de ese grupo
+        niñas_grupo = gimnastas_totales[gimnastas_totales['Nivel_o_Pass'] == grupo_sel]
+        
+        if niñas_grupo.empty:
+            st.warning("No hay gimnastas registradas en este grupo.")
+        else:
+            st.write(f"Marcando asistencia para: **{grupo_sel}**")
+            fecha_asistencia = st.date_input("Fecha de clase:", datetime.now(), key="fecha_asist")
+            
+            # Crear un diccionario para guardar los estados
+            asistencia_data = []
+            
+            # Mostramos la lista con selectores
+            for index, row in niñas_grupo.iterrows():
+                col_n, col_s = st.columns([2, 1])
+                col_n.write(row['Nombre'])
+                estado = col_s.selectbox("Estado", ["Presente", "Ausente", "Tarde", "Justificado"], key=f"asist_{row['DNI']}")
+                asistencia_data.append({
+                    "Fecha": str(fecha_asistencia),
+                    "Entrenador": st.session_state['user']['Nombre'],
+                    "Grupo_Nivel": grupo_sel,
+                    "Gimnasta": row['Nombre'],
+                    "Estado": estado
+                })
+            
+            if st.button("💾 Guardar Asistencia del Grupo", type="primary"):
+                if guardar_asistencia_lote(asistencia_data):
+                    st.success(f"¡Asistencia de {grupo_sel} guardada correctamente!")
+                    st.balloons()
+
 # --- 5. VISTA GIMNASTA ---
 def mostrar_app_gimnasta():
     user = st.session_state['usuario_actual']
@@ -360,6 +412,7 @@ if not st.session_state['logueado']: login()
 else:
     if st.session_state['rol_actual'] == 'Entrenador': mostrar_dashboard()
     else: mostrar_app_gimnasta()
+
 
 
 
