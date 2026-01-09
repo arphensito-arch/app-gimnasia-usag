@@ -102,14 +102,16 @@ def login():
                 st.session_state.update({'logueado': True, 'rol': 'Gimnasta', 'user': user.iloc[0].to_dict()})
                 st.rerun()
     with t2:
-        profes = df_u[df_u['Rol'] == 'Entrenador']
-        sel = st.selectbox("Profesor/a:", profes['Nombre'].tolist())
-        pwd = st.text_input("Clave:", type="password")
-        if st.button("Acceso Admin"):
-            p_data = profes[profes['Nombre'] == sel].iloc[0]
-            if pwd == str(p_data['Nivel_o_Pass']):
-                st.session_state.update({'logueado': True, 'rol': 'Entrenador', 'user': p_data.to_dict()})
-                st.rerun()
+        lista_profes = entrenadores['Nombre'].unique().tolist()
+        if lista_profes:
+            seleccion = st.selectbox("Nombre:", lista_profes)
+            pwd = st.text_input("Contraseña:", type="password")
+            if st.button("Ingresar Admin"):
+                profe = entrenadores[entrenadores['Nombre'] == seleccion].iloc[0]
+                if pwd == str(profe['Nivel_o_Pass']):
+                    st.session_state.update({'logueado': True, 'rol_actual': 'Entrenador', 'usuario_actual': profe.to_dict()})
+                    st.rerun()
+                else: st.error("Incorrecto.")
 
 # --- 4. PANEL DE ENTRENADOR (ADMIN) ---
 def mostrar_dashboard():
@@ -216,3 +218,4 @@ def vista_gimnasta():
 if not st.session_state['logueado']: login()
 elif st.session_state['rol'] == 'Entrenador': vista_admin()
 else: vista_gimnasta()
+
