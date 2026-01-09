@@ -144,7 +144,19 @@ def vista_admin():
 
     with t3:
         st.write("Gestión de Usuarios")
-        # Aquí puedes agregar el código de agregar/eliminar usuarios si lo deseas.
+        with tab_users:
+               df_users = cargar_usuarios_db()
+               st.dataframe(df_users, use_container_width=True)
+               with st.form("add_user"):
+                c1, c2, c3 = st.columns(3)
+                d = c1.text_input("DNI")
+                n = c2.text_input("Nombre")
+                r = c3.selectbox("Rol", ["Gimnasta", "Entrenador"])
+                p = st.text_input("Nivel / Password")
+                if st.form_submit_button("Agregar"):
+                    new = pd.DataFrame([{"DNI":d, "Nombre":n, "Rol":r, "Nivel_o_Pass":p, "Activo":"SI"}])
+                    if actualizar_usuarios_db(pd.concat([df_users, new], ignore_index=True)):
+                        st.rerun()
 
 # --- 5. VISTA GIMNASTA ---
 def vista_gimnasta():
@@ -197,3 +209,4 @@ def vista_gimnasta():
 if not st.session_state['logueado']: login()
 elif st.session_state['rol'] == 'Entrenador': vista_admin()
 else: vista_gimnasta()
+
